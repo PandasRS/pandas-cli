@@ -1,7 +1,8 @@
+[package]
 name = "pandas-cli"
 version = "0.1.0"
 authors = ["Marcus Gomes <viniciusllgomes@gmail.com>"]
-edition = "2024"
+edition = "2021"
 description = "PandasCLI is a command-line tool for quickly generating and managing Rust projects with PandasAPI structure. It helps you set up new projects, generate modules, and streamline your development workflow with ease."
 license = "MIT"
 repository = "https://github.com/PandasRS/pandas-cli"
@@ -12,6 +13,8 @@ keywords = ["cli", "pandas", "api"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-regex = "1.5"
 clap = "2.33"
 include_dir = "0.6"
+
+[profile.release]
+opt-level = 3
