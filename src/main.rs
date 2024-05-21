@@ -1,10 +1,17 @@
+//! # PandasCLI
+//!
+//! `pandas-cli` is a command-line tool for quickly generating and managing Rust projects with PandasAPI structure. 
+//! It helps you set up new projects, generate modules, and streamline your development workflow with ease.
+
 use clap::{App, Arg, SubCommand};
 use include_dir::{include_dir, Dir};
 use std::fs;
 use std::io::Write;
 
+/// Directory containing the template files for generating project structure.
 static TEMPLATE_DIR: Dir<'_> = include_dir!("src/templates");
 
+/// Main entry point for the `pandas-cli` application.
 fn main() {
     let matches = App::new("pandas-cli")
         .version("1.0")
@@ -46,6 +53,21 @@ fn main() {
     }
 }
 
+/// Creates a new PandasAPI project with the given name.
+///
+/// # Arguments
+///
+/// * `name` - The name of the project.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while creating directories or writing files.
+///
+/// # Example
+///
+/// ```
+/// create_new_project("example_project");
+/// ```
 fn create_new_project(name: &str) {
     println!("Creating new project: {}", name);
 
@@ -126,19 +148,19 @@ pub async fn get_hello() -> Json<&'static str> {
 "#;
     fs::write(format!("{}/src/modules/hello/controller.rs", name), hello_controller_content).expect("Error writing hello/controller.rs");
 
-    let config_mod_content = r#"
-pub struct AppConfig {
+    let config_mod_content = format!(r#"
+pub struct AppConfig {{
     pub mongo_url: String,
-}
+}}
 
-impl AppConfig {
-    pub fn new() -> Self {
-        AppConfig {
-            mongo_url: "mongodb://localhost:27017/".to_string(),
-        }
-    }
-}
-"#;
+impl AppConfig {{
+    pub fn new() -> Self {{
+        AppConfig {{
+            mongo_url: "mongodb://localhost:27017/{}".to_string(),
+        }}
+    }}
+}}
+"#, name);
     fs::write(format!("{}/src/config/mod.rs", name), config_mod_content).expect("Error writing config/mod.rs");
 
     let database_mod_content = format!(r#"
@@ -154,6 +176,21 @@ pub async fn establish_mongo_connection(config: &AppConfig) -> Database {{
     fs::write(format!("{}/src/database/mod.rs", name), database_mod_content).expect("Error writing database/mod.rs");
 }
 
+/// Generates a new module with the given name.
+///
+/// # Arguments
+///
+/// * `name` - The name of the module to generate.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while creating directories or writing files.
+///
+/// # Example
+///
+/// ```
+/// generate_module("example_module");
+/// ```
 fn generate_module(name: &str) {
     let module_dir = format!("src/modules/{}", name);
     let controller_path = format!("{}/controller.rs", module_dir);
@@ -191,11 +228,47 @@ fn generate_module(name: &str) {
     update_main_rs(name);
 }
 
+/// Gets the content of the specified template file.
+///
+/// # Arguments
+///
+/// * `template_name` - The name of the template file.
+///
+/// # Returns
+///
+/// The content of the template file as a string.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while reading the template file.
+///
+/// # Example
+///
+/// ```
+/// let content = get_template_content("module_template.rs");
+/// ```
 fn get_template_content(template_name: &str) -> String {
     let file = TEMPLATE_DIR.get_file(template_name).expect("Template not found");
     file.contents_utf8().expect("Error reading template").to_string()
 }
 
+/// Writes the template content to the specified destination file.
+///
+/// # Arguments
+///
+/// * `destination_path` - The path to the destination file.
+/// * `template_content` - The content of the template.
+/// * `name` - The name to replace in the template content.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while writing the destination file.
+///
+/// # Example
+///
+/// ```
+/// write_template("path/to/file.rs", "template content", "module_name");
+/// ```
 fn write_template(destination_path: &str, template_content: &str, name: &str) {
     let content = template_content
         .replace("{{module_name}}", name)
@@ -204,6 +277,22 @@ fn write_template(destination_path: &str, template_content: &str, name: &str) {
     fs::write(destination_path, content).expect("Error writing destination file");
 }
 
+/// Capitalizes the first letter of the given string.
+///
+/// # Arguments
+///
+/// * `s` - The string to capitalize.
+///
+/// # Returns
+///
+/// The string with the first letter capitalized.
+///
+/// # Example
+///
+/// ```
+/// let capitalized = capitalize_first_letter("example");
+/// assert_eq!(capitalized, "Example");
+/// ```
 fn capitalize_first_letter(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
@@ -212,6 +301,21 @@ fn capitalize_first_letter(s: &str) -> String {
     }
 }
 
+/// Updates the `src/modules/mod.rs` file to include the new module.
+///
+/// # Arguments
+///
+/// * `module_name` - The name of the new module.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while updating the file.
+///
+/// # Example
+///
+/// ```
+/// update_modules_mod_rs("new_module");
+/// ```
 fn update_modules_mod_rs(module_name: &str) {
     let mod_rs_path = "src/modules/mod.rs";
     let mod_rs_content = format!("pub mod {};\n", module_name);
@@ -223,6 +327,21 @@ fn update_modules_mod_rs(module_name: &str) {
         .expect("Error writing to modules/mod.rs");
 }
 
+/// Updates the `src/main.rs` file to include the new module's routes.
+///
+/// # Arguments
+///
+/// * `module_name` - The name of the new module.
+///
+/// # Panics
+///
+/// This function will panic if it encounters any error while updating the file.
+///
+/// # Example
+///
+/// ```
+/// update_main_rs("new_module");
+/// ```
 fn update_main_rs(module_name: &str) {
     let main_rs_path = "src/main.rs";
 
