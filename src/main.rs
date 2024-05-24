@@ -1,12 +1,7 @@
-//! # PandasCLI
-//!
-//! `pandas-cli` is a command-line tool for quickly generating and managing Rust projects with PandasAPI structure. 
-//! It helps you set up new projects, generate modules, and streamline your development workflow with ease.
-
 use clap::{App, Arg, SubCommand};
 use include_dir::{include_dir, Dir};
 use std::fs;
-use std::io::Write;
+use std::io::{self, Write};
 
 /// Directory containing the template files for generating project structure.
 static TEMPLATE_DIR: Dir<'_> = include_dir!("src/templates");
@@ -192,6 +187,7 @@ pub async fn establish_mongo_connection(config: &AppConfig) -> Database {{
 /// generate_module("example_module");
 /// ```
 fn generate_module(name: &str) {
+    let params = prompt_for_parameters();
     let module_dir = format!("src/modules/{}", name);
     let controller_path = format!("{}/controller.rs", module_dir);
     let dto_path = format!("{}/dto.rs", module_dir);
@@ -199,7 +195,6 @@ fn generate_module(name: &str) {
     let repository_path = format!("{}/repository.rs", module_dir);
     let service_path = format!("{}/service.rs", module_dir);
     let mod_path = format!("{}/mod.rs", module_dir);
-    let test_path = format!("{}/service_test.rs", module_dir);
 
     let mod_template = get_template_content("module_template.rs");
     let controller_template = get_template_content("controller_template.rs");
@@ -207,25 +202,58 @@ fn generate_module(name: &str) {
     let schema_template = get_template_content("schema_template.rs");
     let repository_template = get_template_content("repository_template.rs");
     let service_template = get_template_content("service_template.rs");
-    let test_template = get_template_content("test_template.rs");
 
     // Create module directory
     fs::create_dir_all(&module_dir).expect("Error creating module directory");
 
     // Write templates to files
-    write_template(&mod_path, &mod_template, name);
-    write_template(&controller_path, &controller_template, name);
-    write_template(&dto_path, &dto_template, name);
-    write_template(&schema_path, &schema_template, name);
-    write_template(&repository_path, &repository_template, name);
-    write_template(&service_path, &service_template, name);
-    write_template(&test_path, &test_template, name);
+    write_template(&mod_path, &mod_template, name, &params);
+    write_template(&controller_path, &controller_template, name, &params);
+    write_template(&dto_path, &dto_template, name, &params);
+    write_template(&schema_path, &schema_template, name, &params);
+    write_template(&repository_path, &repository_template, name, &params);
+    write_template(&service_path, &service_template, name, &params);
 
     // Update modules/mod.rs
     update_modules_mod_rs(name);
 
     // Update main.rs
     update_main_rs(name);
+}
+
+/// Prompts the user to enter parameters for the module.
+///
+/// # Returns
+///
+/// A vector of tuples containing parameter names and types.
+///
+/// # Example
+///
+/// ```
+/// let params = prompt_for_parameters();
+/// for (name, ty) in params {
+///     println!("Parameter: {} of type {}", name, ty);
+/// }
+/// ```
+fn prompt_for_parameters() -> Vec<(String, String)> {
+    let mut params = Vec::new();
+    loop {
+        println!("Enter parameter name (or press Enter to finish):");
+        let mut param_name = String::new();
+        io::stdin().read_line(&mut param_name).expect("Failed to read line");
+        let param_name = param_name.trim().to_string();
+        if param_name.is_empty() {
+            break;
+        }
+
+        println!("Enter parameter type (e.g., String, i32, bool):");
+        let mut param_type = String::new();
+        io::stdin().read_line(&mut param_type).expect("Failed to read line");
+        let param_type = param_type.trim().to_string();
+
+        params.push((param_name, param_type));
+    }
+    params
 }
 
 /// Gets the content of the specified template file.
@@ -259,6 +287,7 @@ fn get_template_content(template_name: &str) -> String {
 /// * `destination_path` - The path to the destination file.
 /// * `template_content` - The content of the template.
 /// * `name` - The name to replace in the template content.
+/// * `params` - The parameters to include in the template.
 ///
 /// # Panics
 ///
@@ -267,15 +296,41 @@ fn get_template_content(template_name: &str) -> String {
 /// # Example
 ///
 /// ```
-/// write_template("path/to/file.rs", "template content", "module_name");
+/// write_template("path/to/file.rs", "template content", "module_name", &params);
 /// ```
-fn write_template(destination_path: &str, template_content: &str, name: &str) {
-    let content = template_content
+fn write_template(destination_path: &str, template_content: &str, name: &str, params: &[(String, String)]) {
+    let mut content = template_content
         .replace("{{module_name}}", name)
         .replace("{{ModuleName}}", &capitalize_first_letter(name));
 
+    let params_struct = params.iter()
+        .map(|(name, ty)| format!("    pub {}: {},", name, ty))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let params_struct_optional = params.iter()
+        .map(|(name, ty)| format!("    pub {}: Option<{}>,", name, ty))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let params_impl = params.iter()
+        .map(|(name, _)| format!("        {}: dto.{},", name, name))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let params_struct_update = params.iter()
+        .map(|(name, _)| format!("            if let Some({}) = dto.{} {{ update_doc.insert(\"{}\", {}); }}", name, name, name, name))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    content = content.replace("{{params_struct}}", &params_struct);
+    content = content.replace("{{params_struct_optional}}", &params_struct_optional);
+    content = content.replace("{{params_impl}}", &params_impl);
+    content = content.replace("{{params_struct_update}}", &params_struct_update);
+
     fs::write(destination_path, content).expect("Error writing destination file");
 }
+
 
 /// Capitalizes the first letter of the given string.
 ///

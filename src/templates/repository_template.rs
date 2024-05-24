@@ -75,14 +75,10 @@ impl {{ModuleName}}Repository for Mongo{{ModuleName}}Repository {
 
     async fn update_{{module_name}}(&mut self, id: &str, dto: Update{{ModuleName}}Dto) -> Option<{{ModuleName}}> {
         let collection: Collection<Document> = self.db.collection("{{module_name}}s");
+        
         if let Ok(object_id) = ObjectId::parse_str(id) {
             let mut update_doc = doc! {};
-            if let Some(name) = dto.name {
-                update_doc.insert("name", name);
-            }
-            if let Some(age) = dto.age {
-                update_doc.insert("age", age);
-            }
+            {{params_struct_update}}
             match collection.update_one(doc! {"_id": object_id}, doc! {"$set": update_doc}, None).await {
                 Ok(_) => collection.find_one(doc! {"_id": object_id}, None).await.unwrap().map(|doc| {
                     let mut {{module_name}}: {{ModuleName}} = mongodb::bson::from_document(doc).unwrap();

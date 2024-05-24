@@ -6,8 +6,7 @@ use crate::modules::{{module_name}}::schema::{{ModuleName}};
 pub async fn create_{{module_name}}<R: {{ModuleName}}Repository>(repo: &mut R, dto: Create{{ModuleName}}Dto) -> Json<{{ModuleName}}> {
     let {{module_name}} = {{ModuleName}} {
         id: None,
-        name: dto.name,
-        age: dto.age,
+        {{params_impl}}
     };
     Json(repo.create_{{module_name}}({{module_name}}).await)
 }
